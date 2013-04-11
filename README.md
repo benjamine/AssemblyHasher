@@ -3,16 +3,38 @@ AssemblyHasher
 
 Hash tool for .Net assemblies
 
-Usage:
+Usage
+-------
 
-```
+``` powershell
   AsemblyHasher.exe SomeLibrary.dll
   AsemblyHasher.exe SomeApp.exe
+
+  # hash multiple files at once
   AsemblyHasher.exe SomeLibrary.dll Another.dll A3rdone.dll
+
+  # other files (not *.dll|exe) content gets hashed too
+  AsemblyHasher.exe SomeLibrary.dll Picture.jpeg REAME.md
 ```
 
-The output is a sha1 hash of assembly contents (source code + embedded resources, which are extracted using an embedded ildasm.exe).
+The output is a **SHA1** hash of assembly contents (source code + embedded resources, which are extracted using an embedded ildasm.exe).
 
-Why not hash the .dll/.exe file directly? Because every time an assembly is compiled a few random values are added, making it unique on every compilation.
+Why
+-----
 
-Credits: based on the work of Vasil Trifonov published on [this article](http://www.vtrifonov.com/2012/11/compare-two-dll-files-programmatically.html?showComment=1365644703161#c1212265983525966443)
+Why not hash the .dll/.exe file directly? Because every time an assembly is compiled a few always changing values are added (MVID, timestamp, Image Base) making the file content different on every compilation.
+This tool will disassemble and then remove those values before hashing.
+
+There are many possible use cases, but my main motivation for this is using it in a git-based deployment to keep a cleaner history and to avoid restarting the app when no dlls have changed.
+
+Requirements
+----------
+
+ - .Net Framework 4.5
+
+Credits
+-------
+
+- Vasil Trifonov (@vtrifonov), idea and initial version published at [this article](http://www.vtrifonov.com/2012/11/compare-two-dll-files-programmatically.html?showComment=1365644703161#c1212265983525966443)
+- Benjamin Eidelman (@benjamine), packing/publishing, sha1, hashing embedded resources
+
