@@ -12,6 +12,11 @@ namespace AssemblyHasher
     {
         public static string Hash(params string[] filenames)
         {
+            return Hash(filenames);
+        }
+
+        public static string Hash(bool ignoreVersions, params string[] filenames)
+        {
             using (var hashService = new SHA1CryptoServiceProvider())
             {
                 foreach (var filename in filenames)
@@ -19,7 +24,7 @@ namespace AssemblyHasher
                     var extension = Path.GetExtension(filename).ToLowerInvariant();
                     if (extension == ".dll" || extension == ".exe")
                     {
-                        var disassembled = Disassembler.Disassemble(filename);
+                        var disassembled = Disassembler.Disassemble(filename, ignoreVersions);
                         AddFileToHash(disassembled.ILFilename, hashService);
                         foreach (var resource in disassembled.Resources)
                         {
