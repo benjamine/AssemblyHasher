@@ -10,6 +10,9 @@ Usage
   AsemblyHasher.exe SomeLibrary.dll
   AsemblyHasher.exe SomeApp.exe
 
+  # ignore AssemblVersion and AssemblyFileVersion 
+  AsemblyHasher.exe --ignore-versions SomeLibrary.dll
+
   # hash multiple files at once
   AsemblyHasher.exe SomeLibrary.dll Another.dll A3rdone.dll
 
