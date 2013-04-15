@@ -24,7 +24,7 @@ namespace AssemblyHasher
                 Console.WriteLine("   --ignore-versions: ignore assembly version and assembly file version attributes");
                 return;
             }
-            var hash = FileHasher.Hash(ignoreVersions, args);
+            var hash = FileHasher.Hash(ignoreVersions, arguments.ToArray());
             Console.Write(hash);
         }
     }
