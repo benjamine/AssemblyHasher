@@ -35,8 +35,14 @@ namespace AssemblyHasher
         public static Regex regexMVID = new Regex("//\\s*MVID\\:\\s*\\{[a-zA-Z0-9\\-]+\\}", RegexOptions.Multiline | RegexOptions.Compiled);
         public static Regex regexImageBase = new Regex("//\\s*Image\\s+base\\:\\s0x[0-9A-Fa-f]*", RegexOptions.Multiline | RegexOptions.Compiled);
         public static Regex regexTimeStamp = new Regex("//\\s*Time-date\\s+stamp\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Multiline | RegexOptions.Compiled);
+        public static Regex regexPrivateImplementationDetails = new Regex("<PrivateImplementationDetails>\\{[^\\}]*\\}", RegexOptions.Multiline | RegexOptions.Compiled);
         public static Regex regexAssemblyVersion = new Regex("^[ ]*\\.ver \\d.*$", RegexOptions.Multiline | RegexOptions.Compiled);
         public static Regex regexAssemblyFileVersion = new Regex("^[ ]*.custom.*System.Reflection\\.AssemblyFileVersionAttribute.*$", RegexOptions.Multiline | RegexOptions.Compiled);
+
+        public static Regex regexVsVersionInfoRes = new Regex("VS_VERSION_INFO.*VarFileInfo", RegexOptions.Multiline | RegexOptions.Compiled);
+        public static Regex regexFileVersionRes = new Regex("FileVersion[0-9\\.\0 ]*", RegexOptions.Multiline | RegexOptions.Compiled);
+        public static Regex regexProductVersionRes = new Regex("ProductVersion[0-9\\.\0 ]*", RegexOptions.Multiline | RegexOptions.Compiled);
+        public static Regex regexAssemblyVersionRes = new Regex("Assembly Version[0-9\\.\0 ]*", RegexOptions.Multiline | RegexOptions.Compiled);
 
         private static readonly Lazy<Assembly> currentAssembly = new Lazy<Assembly>(() =>
         {
@@ -170,11 +176,16 @@ namespace AssemblyHasher
             }
 
             var ilFilename = Path.Combine(outputFolder, "output.il");
-            RemoveUnnededRows(ilFilename, removeAssemblyVersion);
+            RemoveUndesiredData(ilFilename, removeAssemblyVersion);
+            var resFilename = Path.ChangeExtension(ilFilename, ".res");
+            if (File.Exists(resFilename))
+            {
+                RemoveUndesiredDataRes(resFilename, removeAssemblyVersion);
+            }
             return new DissasembleOutput(outputFolder, ilFilename);
         }
 
-        private static void RemoveUnnededRows(string fileName, bool removeAssemblyVersion = false)
+        private static void RemoveUndesiredData(string fileName, bool removeAssemblyVersion = false)
         {
             string fileContent = File.ReadAllText(fileName);
             //remove MVID
@@ -183,12 +194,29 @@ namespace AssemblyHasher
             fileContent = regexImageBase.Replace(fileContent, string.Empty);
             //remove Time Stamp
             fileContent = regexTimeStamp.Replace(fileContent, string.Empty);
+            //remove PrivateImplementationDetails GUIDs
+            fileContent = regexPrivateImplementationDetails.Replace(fileContent, string.Empty);
             if (removeAssemblyVersion)
             {
                 //remove AssemblyVersion and AssemblyFileVersion
                 fileContent = regexAssemblyFileVersion.Replace(fileContent, string.Empty);
                 fileContent = regexAssemblyVersion.Replace(fileContent, string.Empty);
             }
+            File.WriteAllText(fileName, fileContent);
+        }
+
+        private static void RemoveUndesiredDataRes(string fileName, bool removeAssemblyVersion = false)
+        {
+            if (!removeAssemblyVersion)
+            {
+                return;
+            }
+            string fileContent = File.ReadAllText(fileName, Encoding.Unicode);
+            //remove AssemblyVersion and AssemblyFileVersion
+            fileContent = regexVsVersionInfoRes.Replace(fileContent, string.Empty);
+            fileContent = regexFileVersionRes.Replace(fileContent, string.Empty);
+            fileContent = regexProductVersionRes.Replace(fileContent, string.Empty);
+            fileContent = regexAssemblyVersionRes.Replace(fileContent, string.Empty);
             File.WriteAllText(fileName, fileContent);
         }
     }
