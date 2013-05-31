@@ -28,21 +28,27 @@ namespace AssemblyHasher
             {
                 Folder = folder;
                 ILFilename = ilFilename;
-                Resources = Directory.EnumerateFiles(Folder).Where(filename => filename != ilFilename).ToArray();
+                Resources = Directory.EnumerateFiles(Folder)
+                    .Where(filename => filename != ilFilename && !regexPostSharpResourceFiles.IsMatch(Path.GetFileName(filename) ?? ""))
+                    .ToArray();
             }
         }
 
-        public static Regex regexMVID = new Regex("//\\s*MVID\\:\\s*\\{[a-zA-Z0-9\\-]+\\}", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexImageBase = new Regex("//\\s*Image\\s+base\\:\\s0x[0-9A-Fa-f]*", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexTimeStamp = new Regex("//\\s*Time-date\\s+stamp\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexPrivateImplementationDetails = new Regex("<PrivateImplementationDetails>\\{[^\\}]*\\}", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexAssemblyVersion = new Regex("^[ ]*\\.ver \\d.*$", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexAssemblyFileVersion = new Regex("^[ ]*.custom.*System.Reflection\\.AssemblyFileVersionAttribute.*$", RegexOptions.Multiline | RegexOptions.Compiled);
+        public static Regex regexPostSharpResourceFiles = new Regex("^PostSharp\\.Aspects\\.[0-9\\.]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public static Regex regexVsVersionInfoRes = new Regex("VS_VERSION_INFO.*VarFileInfo", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexFileVersionRes = new Regex("FileVersion[0-9\\.\0 ]*", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexProductVersionRes = new Regex("ProductVersion[0-9\\.\0 ]*", RegexOptions.Multiline | RegexOptions.Compiled);
-        public static Regex regexAssemblyVersionRes = new Regex("Assembly Version[0-9\\.\0 ]*", RegexOptions.Multiline | RegexOptions.Compiled);
+        public static Regex regexMVID = new Regex("//\\s*MVID\\:\\s*\\{[a-zA-Z0-9\\-]+\\}", RegexOptions.Compiled);
+        public static Regex regexImageBase = new Regex("//\\s*Image\\s+base\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Compiled);
+        public static Regex regexDotImageBase = new Regex("^.imagebase\\s0x[0-9A-Fa-f]*", RegexOptions.Compiled);
+        public static Regex regexEntryPoint = new Regex("//\\s*Entry point code\\:", RegexOptions.Compiled);
+        public static Regex regexTimeStamp = new Regex("//\\s*Time-date\\s+stamp\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Compiled);
+        public static Regex regexPrivateImplementationDetails = new Regex("<PrivateImplementationDetails>\\{[^\\}]*\\}", RegexOptions.Compiled);
+        public static Regex regexAssemblyVersion = new Regex("^[ ]*\\.ver \\d.*$", RegexOptions.Compiled);
+        public static Regex regexAssemblyFileVersion = new Regex("^[ ]*.custom.*System.Reflection\\.AssemblyFileVersionAttribute.*$", RegexOptions.Compiled);
+
+        public static Regex regexVsVersionInfoRes = new Regex("VS_VERSION_INFO.*VarFileInfo", RegexOptions.Compiled);
+        public static Regex regexFileVersionRes = new Regex("FileVersion[0-9\\.\0 ]*", RegexOptions.Compiled);
+        public static Regex regexProductVersionRes = new Regex("ProductVersion[0-9\\.\0 ]*", RegexOptions.Compiled);
+        public static Regex regexAssemblyVersionRes = new Regex("Assembly Version[0-9\\.\0 ]*", RegexOptions.Compiled);
 
         private static readonly Lazy<Assembly> currentAssembly = new Lazy<Assembly>(() =>
         {
@@ -185,24 +191,69 @@ namespace AssemblyHasher
             return new DissasembleOutput(outputFolder, ilFilename);
         }
 
+        private static void CleanFile(string fileName, Encoding encoding = null, Regex[] removeRegexes = null, IDictionary<Regex, int> lineSkipRegexes = null)
+        {
+            string fileNameTmp = fileName + ".tmp";
+            using (var reader = new StreamReader(fileName, encoding ?? Encoding.Default))
+            {
+                using (var writer = new StreamWriter(fileNameTmp))
+                {
+                    var skipNextLines = 0;
+                    var line = reader.ReadLine();
+                    while (line != null)
+                    {
+                        var lineOut = line;
+                        if (removeRegexes != null)
+                        {
+                            foreach (var removeRegex in removeRegexes)
+                            {
+                                lineOut = removeRegex.Replace(lineOut, string.Empty);
+                            }
+                        }
+                        if (lineSkipRegexes != null)
+                        {
+                            foreach (var skipper in lineSkipRegexes)
+                            {
+                                if (skipper.Key.IsMatch(lineOut))
+                                {
+                                    skipNextLines = skipper.Value;
+                                    break;
+                                }
+                            }
+                        }
+                        if (skipNextLines > 0)
+                        {
+                            skipNextLines--;
+                        }
+                        else
+                        {
+                            writer.WriteLine(lineOut);
+                        }
+
+                        line = reader.ReadLine();
+                    }
+                    writer.Flush();
+                    writer.Close();
+                }
+            }
+            File.Copy(fileNameTmp, fileName, true);
+            File.Delete(fileNameTmp);
+        }
+
         private static void RemoveUndesiredData(string fileName, bool removeAssemblyVersion = false)
         {
-            string fileContent = File.ReadAllText(fileName);
-            //remove MVID
-            fileContent = regexMVID.Replace(fileContent, string.Empty);
-            //remove Image Base
-            fileContent = regexImageBase.Replace(fileContent, string.Empty);
-            //remove Time Stamp
-            fileContent = regexTimeStamp.Replace(fileContent, string.Empty);
-            //remove PrivateImplementationDetails GUIDs
-            fileContent = regexPrivateImplementationDetails.Replace(fileContent, string.Empty);
+            var removeRegexes = new[]
+                {
+                    regexMVID, regexImageBase, regexDotImageBase, regexTimeStamp, regexPrivateImplementationDetails
+                }.ToList();
             if (removeAssemblyVersion)
             {
-                //remove AssemblyVersion and AssemblyFileVersion
-                fileContent = regexAssemblyFileVersion.Replace(fileContent, string.Empty);
-                fileContent = regexAssemblyVersion.Replace(fileContent, string.Empty);
+                removeRegexes.Add(regexAssemblyFileVersion);
+                removeRegexes.Add(regexAssemblyVersion);
             }
-            File.WriteAllText(fileName, fileContent);
+            CleanFile(fileName, 
+                removeRegexes: removeRegexes.ToArray(), 
+                lineSkipRegexes: new Dictionary<Regex, int> { { regexEntryPoint, 2 } });
         }
 
         private static void RemoveUndesiredDataRes(string fileName, bool removeAssemblyVersion = false)
@@ -211,13 +262,15 @@ namespace AssemblyHasher
             {
                 return;
             }
-            string fileContent = File.ReadAllText(fileName, Encoding.Unicode);
-            //remove AssemblyVersion and AssemblyFileVersion
-            fileContent = regexVsVersionInfoRes.Replace(fileContent, string.Empty);
-            fileContent = regexFileVersionRes.Replace(fileContent, string.Empty);
-            fileContent = regexProductVersionRes.Replace(fileContent, string.Empty);
-            fileContent = regexAssemblyVersionRes.Replace(fileContent, string.Empty);
-            File.WriteAllText(fileName, fileContent);
+            CleanFile(fileName,
+                encoding: Encoding.Unicode,
+                removeRegexes: new[]
+                {
+                    regexVsVersionInfoRes,
+                    regexFileVersionRes,
+                    regexProductVersionRes,
+                    regexAssemblyVersionRes
+                });
         }
     }
 }
