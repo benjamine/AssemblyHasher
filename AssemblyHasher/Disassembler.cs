@@ -38,12 +38,14 @@ namespace AssemblyHasher
 
         public static Regex regexMVID = new Regex("//\\s*MVID\\:\\s*\\{[a-zA-Z0-9\\-]+\\}", RegexOptions.Compiled);
         public static Regex regexImageBase = new Regex("//\\s*Image\\s+base\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Compiled);
-        public static Regex regexDotImageBase = new Regex("^.imagebase\\s0x[0-9A-Fa-f]*", RegexOptions.Compiled);
+        public static Regex regexDotImageBase = new Regex("^\\.imagebase\\s0x[0-9A-Fa-f]*", RegexOptions.Compiled);
         public static Regex regexEntryPoint = new Regex("//\\s*Entry point code\\:", RegexOptions.Compiled);
         public static Regex regexTimeStamp = new Regex("//\\s*Time-date\\s+stamp\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Compiled);
         public static Regex regexPrivateImplementationDetails = new Regex("<PrivateImplementationDetails>\\{[^\\}]*\\}", RegexOptions.Compiled);
+        public static Regex regexCustomComment = new Regex("\\s*\\.custom\\s+/\\*.*$", RegexOptions.Compiled);
+        public static Regex regexHexaData = new Regex("\\s*[A-F0-9][A-F0-9][A-F0-9 ]+\\s*//.*$", RegexOptions.Compiled);
         public static Regex regexAssemblyVersion = new Regex("^[ ]*\\.ver \\d.*$", RegexOptions.Compiled);
-        public static Regex regexAssemblyFileVersion = new Regex("^[ ]*.custom.*System.Reflection\\.AssemblyFileVersionAttribute.*$", RegexOptions.Compiled);
+        public static Regex regexAssemblyFileVersion = new Regex("^[ ]*\\.custom.*System.Reflection\\.AssemblyFileVersionAttribute.*$", RegexOptions.Compiled);
 
         public static Regex regexVsVersionInfoRes = new Regex("VS_VERSION_INFO.*VarFileInfo", RegexOptions.Compiled);
         public static Regex regexFileVersionRes = new Regex("FileVersion[0-9\\.\0 ]*", RegexOptions.Compiled);
@@ -244,14 +246,20 @@ namespace AssemblyHasher
         {
             var removeRegexes = new[]
                 {
-                    regexMVID, regexImageBase, regexDotImageBase, regexTimeStamp, regexPrivateImplementationDetails
+                    regexMVID, 
+                    regexImageBase, 
+                    regexDotImageBase, 
+                    regexTimeStamp,
+                    regexPrivateImplementationDetails,
+                    regexCustomComment,
+                    regexHexaData,
                 }.ToList();
             if (removeAssemblyVersion)
             {
                 removeRegexes.Add(regexAssemblyFileVersion);
                 removeRegexes.Add(regexAssemblyVersion);
             }
-            CleanFile(fileName, 
+            CleanFile(fileName,
                 removeRegexes: removeRegexes.ToArray(), 
                 lineSkipRegexes: new Dictionary<Regex, int> { { regexEntryPoint, 2 } });
         }
