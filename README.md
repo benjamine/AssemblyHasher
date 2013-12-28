@@ -20,15 +20,16 @@ Usage
   AsemblyHasher.exe SomeLibrary.dll Picture.jpeg REAME.md
 ```
 
-The output is a **SHA1** hash of assembly contents (source code + embedded resources, which are extracted using an embedded ildasm.exe).
+The output is a hash (using [MurMur-128](http://en.wikipedia.org/wiki/MurmurHash)) of assembly contents (source code + embedded resources, which are extracted using an embedded copy of ildasm.exe).
 
 Why
 -----
 
-Why not hash the .dll/.exe file directly? Because every time an assembly is compiled a few always changing values are added (MVID, timestamp, Image Base) making the file content different on every compilation.
+Why not hash the .dll/.exe file directly? Because every time an assembly is compiled a few always changing values are added (MVID, timestamp, Image Base, and many others) making the file content different on every compilation.
 This tool will disassemble and then remove those values before hashing.
 
-There are many possible use cases, but my main motivation for this is using it in a git-based deployment to keep a cleaner history and to avoid restarting the app when no dlls have changed.
+There are many possible use cases, but my main motivation for this is using it in git-based deployments to keep a cleaner history and to avoid restarting the app when no dlls have changed (IIS hot deploy).
+For that purpose you can use the included powershell script ```GitResetUnmodifiedAssemblies.ps1````.
 
 Requirements
 ----------
