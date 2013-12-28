@@ -36,22 +36,6 @@ namespace AssemblyHasher
 
         public static Regex regexPostSharpResourceFiles = new Regex("^PostSharp\\.Aspects\\.[0-9\\.]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public static Regex regexMVID = new Regex("//\\s*MVID\\:\\s*\\{[a-zA-Z0-9\\-]+\\}", RegexOptions.Compiled);
-        public static Regex regexImageBase = new Regex("//\\s*Image\\s+base\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Compiled);
-        public static Regex regexDotImageBase = new Regex("^\\.imagebase\\s0x[0-9A-Fa-f]*", RegexOptions.Compiled);
-        public static Regex regexEntryPoint = new Regex("//\\s*Entry point code\\:", RegexOptions.Compiled);
-        public static Regex regexTimeStamp = new Regex("//\\s*Time-date\\s+stamp\\:\\s*0x[0-9A-Fa-f]*", RegexOptions.Compiled);
-        public static Regex regexPrivateImplementationDetails = new Regex("<PrivateImplementationDetails>\\{[^\\}]*\\}", RegexOptions.Compiled);
-        public static Regex regexCustomComment = new Regex("\\s*\\.custom\\s+/\\*.*$", RegexOptions.Compiled);
-        public static Regex regexHexaData = new Regex("\\s*[A-F0-9][A-F0-9][A-F0-9 ]+\\s*//.*$", RegexOptions.Compiled);
-        public static Regex regexAssemblyVersion = new Regex("^[ ]*\\.ver \\d.*$", RegexOptions.Compiled);
-        public static Regex regexAssemblyFileVersion = new Regex("^[ ]*\\.custom.*System.Reflection\\.AssemblyFileVersionAttribute.*$", RegexOptions.Compiled);
-
-        public static Regex regexVsVersionInfoRes = new Regex("VS_VERSION_INFO.*VarFileInfo", RegexOptions.Compiled);
-        public static Regex regexFileVersionRes = new Regex("FileVersion[0-9\\.\0 ]*", RegexOptions.Compiled);
-        public static Regex regexProductVersionRes = new Regex("ProductVersion[0-9\\.\0 ]*", RegexOptions.Compiled);
-        public static Regex regexAssemblyVersionRes = new Regex("Assembly Version[0-9\\.\0 ]*", RegexOptions.Compiled);
-
         private static readonly Lazy<Assembly> currentAssembly = new Lazy<Assembly>(() =>
         {
             return MethodBase.GetCurrentMethod().DeclaringType.Assembly;
@@ -142,7 +126,7 @@ namespace AssemblyHasher
             return path;
         }
 
-        public static DissasembleOutput Disassemble(string assemblyFilename, bool removeAssemblyVersion = false)
+        public static DissasembleOutput Disassemble(string assemblyFilename)
         {
             if (!File.Exists(assemblyFilename))
             {
@@ -184,101 +168,7 @@ namespace AssemblyHasher
             }
 
             var ilFilename = Path.Combine(outputFolder, "output.il");
-            RemoveUndesiredData(ilFilename, removeAssemblyVersion);
-            var resFilename = Path.ChangeExtension(ilFilename, ".res");
-            if (File.Exists(resFilename))
-            {
-                RemoveUndesiredDataRes(resFilename, removeAssemblyVersion);
-            }
             return new DissasembleOutput(outputFolder, ilFilename);
-        }
-
-        private static void CleanFile(string fileName, Encoding encoding = null, Regex[] removeRegexes = null, IDictionary<Regex, int> lineSkipRegexes = null)
-        {
-            string fileNameTmp = fileName + ".tmp";
-            using (var reader = new StreamReader(fileName, encoding ?? Encoding.Default))
-            {
-                using (var writer = new StreamWriter(fileNameTmp))
-                {
-                    var skipNextLines = 0;
-                    var line = reader.ReadLine();
-                    while (line != null)
-                    {
-                        var lineOut = line;
-                        if (removeRegexes != null)
-                        {
-                            foreach (var removeRegex in removeRegexes)
-                            {
-                                lineOut = removeRegex.Replace(lineOut, string.Empty);
-                            }
-                        }
-                        if (lineSkipRegexes != null)
-                        {
-                            foreach (var skipper in lineSkipRegexes)
-                            {
-                                if (skipper.Key.IsMatch(lineOut))
-                                {
-                                    skipNextLines = skipper.Value;
-                                    break;
-                                }
-                            }
-                        }
-                        if (skipNextLines > 0)
-                        {
-                            skipNextLines--;
-                        }
-                        else
-                        {
-                            writer.WriteLine(lineOut);
-                        }
-
-                        line = reader.ReadLine();
-                    }
-                    writer.Flush();
-                    writer.Close();
-                }
-            }
-            File.Copy(fileNameTmp, fileName, true);
-            File.Delete(fileNameTmp);
-        }
-
-        private static void RemoveUndesiredData(string fileName, bool removeAssemblyVersion = false)
-        {
-            var removeRegexes = new[]
-                {
-                    regexMVID, 
-                    regexImageBase, 
-                    regexDotImageBase, 
-                    regexTimeStamp,
-                    regexPrivateImplementationDetails,
-                    regexCustomComment,
-                    regexHexaData,
-                }.ToList();
-            if (removeAssemblyVersion)
-            {
-                removeRegexes.Add(regexAssemblyFileVersion);
-                removeRegexes.Add(regexAssemblyVersion);
-            }
-            CleanFile(fileName,
-                removeRegexes: removeRegexes.ToArray(), 
-                lineSkipRegexes: new Dictionary<Regex, int> { { regexEntryPoint, 2 } });
-        }
-
-        private static void RemoveUndesiredDataRes(string fileName, bool removeAssemblyVersion = false)
-        {
-            if (!removeAssemblyVersion)
-            {
-                return;
-            }
-            CleanFile(fileName,
-                encoding: Encoding.Unicode,
-                removeRegexes: new[]
-                {
-                    regexVsVersionInfoRes,
-                    regexFileVersionRes,
-                    regexProductVersionRes,
-                    regexAssemblyVersionRes
-                });
         }
     }
 }
