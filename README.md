@@ -29,7 +29,7 @@ Why not hash the .dll/.exe file directly? Because every time an assembly is comp
 This tool will disassemble and then remove those values before hashing.
 
 There are many possible use cases, but my main motivation for this is using it in git-based deployments to keep a cleaner history and to avoid restarting the app when no dlls have changed (IIS hot deploy).
-For that purpose you can use the included powershell script ```GitResetUnmodifiedAssemblies.ps1````.
+For that purpose you can use the included powershell script ```GitResetUnmodifiedAssemblies.ps1```.
 
 Requirements
 ----------
