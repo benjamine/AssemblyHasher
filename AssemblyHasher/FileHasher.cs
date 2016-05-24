@@ -12,7 +12,7 @@ namespace AssemblyHasher
     {
         public static string Hash(params string[] filenames)
         {
-            return Hash(filenames);
+            return Hash(false, filenames);
         }
 
         public static string Hash(bool ignoreVersions, params string[] filenames)
