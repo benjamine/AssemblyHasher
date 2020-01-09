@@ -7,17 +7,17 @@ Usage
 -------
 
 ``` powershell
-  AsemblyHasher.exe SomeLibrary.dll
-  AsemblyHasher.exe SomeApp.exe
+  AssemblyHasher.exe SomeLibrary.dll
+  AssemblyHasher.exe SomeApp.exe
 
   # ignore AssemblVersion and AssemblyFileVersion 
-  AsemblyHasher.exe --ignore-versions SomeLibrary.dll
+  AssemblyHasher.exe --ignore-versions SomeLibrary.dll
 
   # hash multiple files at once
-  AsemblyHasher.exe SomeLibrary.dll Another.dll A3rdone.dll
+  AssemblyHasher.exe SomeLibrary.dll Another.dll A3rdone.dll
 
   # other files (not *.dll|exe) content gets hashed too
-  AsemblyHasher.exe SomeLibrary.dll Picture.jpeg REAME.md
+  AssemblyHasher.exe SomeLibrary.dll Picture.jpeg REAME.md
 ```
 
 The output is a hash (using [MurMur-128](http://en.wikipedia.org/wiki/MurmurHash)) of assembly contents (source code + embedded resources, which are extracted using an embedded copy of ildasm.exe).
